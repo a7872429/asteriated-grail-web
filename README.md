@@ -1,6 +1,8 @@
 # Asteriated Grail web
 
-Public frontend for BP, Fearless, CM01 and RD+BP drafting modes.
+Public frontend for BP, Fearless, CM01, RD+BP and Re.星杯戰爭 drafting modes.
+
+Version 2.11 adds the five-match Re.星杯戰爭 story mode, compact WebP chibi artwork, and responsive mobile draft/result layouts.
 
 ## Configuration
 

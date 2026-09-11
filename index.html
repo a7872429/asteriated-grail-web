@@ -412,19 +412,18 @@ button{font:inherit} .app{max-width:1150px;margin:auto;padding:28px 18px 60px} h
 </style>
 </head>
 <body><div class="app">
-<header><div class="eyebrow">ASTERIATED GRAIL v2.8 · BP / 無懼 / CM01 / RD+BP</div><h1>星杯傳說｜陣容構築挑戰</h1><p>在星杯大賽中贏得勝利吧！</p></header>
+<header><div class="eyebrow">ASTERIATED GRAIL v2.11 · BP / 無懼 / CM01 / RD+BP / Re.星杯戰爭</div><h1>星杯傳說｜陣容構築挑戰</h1><p>在星杯大賽中贏得勝利吧！</p></header>
 <section id="profilePanel" class="profile-panel">
   <h2>參賽隊伍登錄</h2>
-  <div class="sub">選擇 BP、無懼、CM01 或 RD+BP 後開始挑戰。</div>
-  <div class="profile-name hidden"><input id="playerNameInput" maxlength="20" placeholder="請輸入隊名"></div>
-  <div class="favorite-title hidden">選擇本命</div>
-  <div id="favoriteGrid" class="favorite-grid hidden"></div>
+  <div class="sub">輸入你的隊伍名稱，選擇賽制後開始挑戰。</div>
+  <div class="profile-name"><input id="playerNameInput" maxlength="30" placeholder="請輸入隊伍名稱（30 字內）"></div>
   
 <div class="mode-switch">
   <button type="button" class="mode-btn versus-mode-btn active" data-mode="bp">BP</button>
   <button type="button" class="mode-btn versus-mode-btn" data-mode="fearless">無懼</button>
   <button type="button" class="mode-btn versus-mode-btn" data-mode="cm01">CM01</button>
   <button type="button" class="mode-btn versus-mode-btn" data-mode="rdbp">RD+BP</button>
+  <button type="button" id="reModeBtn" class="mode-btn versus-mode-btn re-cup-active" data-mode="re">Re.星杯戰爭</button>
 </div>
 <div id="versusConfig" class="chain-config hidden versus-config">
   <label>連戰場數
@@ -439,6 +438,11 @@ button{font:inherit} .app{max-width:1150px;margin:auto;padding:28px 18px 60px} h
   <button type="button" id="versusLearningToggle" class="learning-toggle" aria-pressed="false">◇ 學習模式：關閉</button>
   <div id="versusRuleSummary" class="versus-rule-summary"></div>
 </div>
+<div id="reConfig" class="chain-config hidden re-config">
+  <div class="event-notice-title">請選擇你的本命角色</div>
+  <div id="favoriteGrid" class="favorite-grid"></div>
+  <div class="re-fixed-rules">固定規則：無懼選角・五連戰・100 秒・人機對戰</div>
+</div>
 <div class="profile-actions"><button id="profileStartBtn" class="btn primary">確認，開始挑戰</button></div>
   <div id="profileError" style="text-align:center;color:#ff9daf;font-size:12px;margin-top:9px"></div>
 </section>
@@ -450,5 +454,7 @@ button{font:inherit} .app{max-width:1150px;margin:auto;padding:28px 18px 60px} h
 <script>let gameMode="bp";const characters=[{"id":1,"name":"風之劍聖","image":"assets/avatars/01.png"},{"id":2,"name":"狂戰士","image":"assets/avatars/02.png"},{"id":3,"name":"神箭手","image":"assets/avatars/03.png"},{"id":4,"name":"封印師","image":"assets/avatars/04.png"},{"id":5,"name":"暗殺者","image":"assets/avatars/05.png"},{"id":6,"name":"聖女","image":"assets/avatars/06.png"},{"id":7,"name":"天使","image":"assets/avatars/07.png"},{"id":8,"name":"魔法少女","image":"assets/avatars/08.png"},{"id":9,"name":"魔劍士","image":"assets/avatars/09.png"},{"id":10,"name":"聖槍騎士","image":"assets/avatars/10.png"},{"id":11,"name":"元素師","image":"assets/avatars/11.png"},{"id":12,"name":"冒險家","image":"assets/avatars/12.png"},{"id":13,"name":"瘟疫法師","image":"assets/avatars/13.png"},{"id":14,"name":"仲裁者","image":"assets/avatars/14.png"},{"id":15,"name":"神官","image":"assets/avatars/15.png"},{"id":16,"name":"祈禱師","image":"assets/avatars/16.png"},{"id":17,"name":"賢者","image":"assets/avatars/17.png"},{"id":18,"name":"靈符師","image":"assets/avatars/18.png"},{"id":19,"name":"劍帝","image":"assets/avatars/19.png"},{"id":20,"name":"格鬥家","image":"assets/avatars/20.png"},{"id":21,"name":"勇者","image":"assets/avatars/21.png"},{"id":22,"name":"靈魂術士","image":"assets/avatars/22.png"},{"id":23,"name":"血之巫女","image":"assets/avatars/23.png"},{"id":24,"name":"蝶舞者","image":"assets/avatars/24.png"},{"id":25,"name":"女武神","image":"assets/avatars/25.png"},{"id":26,"name":"魔弓","image":"assets/avatars/26.png"},{"id":27,"name":"紅蓮騎士","image":"assets/avatars/27.png"},{"id":28,"name":"英靈人形","image":"assets/avatars/28.png"},{"id":29,"name":"魔槍","image":"assets/avatars/29.png"},{"id":30,"name":"蒼炎魔女","image":"assets/avatars/30.png"},{"id":31,"name":"吟游詩人","image":"assets/avatars/31.png"},{"id":32,"name":"精靈射手","image":"assets/avatars/32.png"},{"id":33,"name":"陰陽師","image":"assets/avatars/33.png"},{"id":34,"name":"血色劍靈","image":"assets/avatars/34.png"},{"id":35,"name":"月之女神","image":"assets/avatars/35.png"},{"id":36,"name":"獸靈武士","image":"assets/avatars/36.png"},{"id":37,"name":"聖弓","image":"assets/avatars/37.png"},{"id":38,"name":"紅衣主教","image":"assets/avatars/38.png"},{"id":39,"name":"記錄者","image":"assets/avatars/39.png"},{"id":41,"name":"聖庭檢察士","image":"assets/avatars/41.png"},{"id":42,"name":"星墜女巫","image":"assets/avatars/42.png"},{"id":43,"name":"戰鬥法師","image":"assets/avatars/43.png"},{"id":44,"name":"獵巫人","image":"assets/avatars/44.png"},{"id":45,"name":"聖殿騎士","image":"assets/avatars/45.png"},{"id":46,"name":"矜貴之女","image":"assets/avatars/46.png"},{"id":48,"name":"噬神者","image":"assets/avatars/48.png"},{"id":49,"name":"神秘學者","image":"assets/avatars/49.png"},{"id":50,"name":"女僕長","image":"assets/avatars/50.png"},{"id":52,"name":"結界師","image":"assets/avatars/52.png"},{"id":53,"name":"染污者","image":"assets/avatars/53.png"},{"id":55,"name":"傳教士","image":"assets/avatars/55.png"},{"id":66,"name":"異教徒","image":"assets/avatars/66.png"}];</script>
 <link rel="stylesheet" href="modes.css">
 <script src="config.js"></script>
+<script src="re_data.js"></script>
+<script src="re_rank_data.js"></script>
 <script src="modes.js"></script>
 </body></html>
