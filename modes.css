@@ -91,3 +91,24 @@
  .re-final{padding:22px 5px}.re-final .vs-toolbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.re-final .vs-btn{min-width:0;padding:10px 3px;font-size:12px}
  .re-cup-stage .re-chibi{width:min(135px,31vw)}.re-rank-stage .re-chibi{width:min(115px,27vw)}
 }
+
+
+/* v2.12：無懼／Re.星杯半高圓桌與底部停駐 */
+.fearless-layout .vs-seat-anchor{position:relative;min-height:300px;margin-top:12px}
+.fearless-layout .vs-seat-map{position:relative;z-index:30;min-height:300px;width:100%;max-width:760px;margin:0 auto;background:#091426;border:1px solid #30466e;border-radius:22px;box-shadow:0 -12px 28px rgba(4,9,20,.72);overflow:visible}
+.fearless-layout .vs-seat-map.is-docked{position:fixed;left:50%;bottom:max(0px,env(safe-area-inset-bottom));transform:translateX(-50%);width:min(760px,calc(100vw - 18px));margin:0;z-index:100}
+.fearless-layout .vs-seat-map:before{inset:34px 78px;border-width:10px}
+.fearless-layout .vs-map-seat{width:96px;height:96px}
+.fearless-layout .vs-map-seat.r2{right:18%;top:2px}.fearless-layout .vs-map-seat.b3{left:18%;top:2px}.fearless-layout .vs-map-seat.r3{left:1%;top:34%}.fearless-layout .vs-map-seat.b2{right:1%;top:34%}.fearless-layout .vs-map-seat.r1{left:18%;bottom:4px}.fearless-layout .vs-map-seat.b1{right:18%;bottom:4px}
+.fearless-layout .vs-map-center{width:235px;min-height:112px;padding:10px;font-size:15px}.fearless-layout .vs-direction-arrow{bottom:19px;font-size:39px}
+.vs-map-seat .vs-seat-caption{left:4px;right:4px;bottom:-18px;padding:3px 4px;background:rgba(5,9,18,.94);z-index:5}.vs-map-seat .vs-seat-caption em{font-size:10px;color:#fff;font-weight:900}
+.vs-card.own-history-locked{filter:grayscale(1) brightness(.48);opacity:.38}.vs-card.own-history-locked .vs-avatar-ring{background:#526078;box-shadow:none}
+@media(max-width:600px){
+ #versusPanel,.vs-draft-shell{overflow:visible}
+ .fearless-layout .vs-seat-anchor{min-height:245px}
+ .fearless-layout .vs-seat-map{min-height:245px;width:100%;border-radius:16px}
+ .fearless-layout .vs-seat-map:before{inset:27px 39px;border-width:8px}.fearless-layout .vs-map-seat{width:72px;height:72px}
+ .fearless-layout .vs-map-seat.r2{right:16%;top:1px}.fearless-layout .vs-map-seat.b3{left:16%;top:1px}.fearless-layout .vs-map-seat.r3{left:0;top:34%}.fearless-layout .vs-map-seat.b2{right:0;top:34%}.fearless-layout .vs-map-seat.r1{left:16%;bottom:7px}.fearless-layout .vs-map-seat.b1{right:16%;bottom:7px}
+ .fearless-layout .vs-map-center{width:155px;min-height:88px;padding:6px;font-size:11px}.fearless-layout .re-center-opponent img{width:42px;height:42px}.fearless-layout .re-center-opponent b{font-size:15px}.fearless-layout .vs-direction-arrow{bottom:15px;font-size:29px}.fearless-layout .vs-first{top:-13px;font-size:7px}
+ .vs-map-seat .vs-seat-caption{bottom:-15px;padding:2px}.vs-map-seat .vs-seat-caption em{font-size:8px}
+}
