@@ -49,9 +49,18 @@ function reOpponentAvatar(){
  return ids[0]||state?.reOpponent?.rounds?.flat().map(byName).find(Boolean)?.id||characters[0]?.id;
 }
 function chooseReTeamRecords(){
- const groups=new Map();for(const rec of window.RE_TEAM_DRAFTS||[]){const key=teamKey(rec.name);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(rec)}
- const teams=[];for(const list of groups.values()){const ranked=list.slice().sort((a,b)=>recordCompleteness(b)-recordCompleteness(a)).slice(0,2);ranked.forEach((rec,index)=>teams.push(completeReTeamRecord(rec,index?`${rec.name}支隊`:rec.name)))}
+ const groups=new Map();for(const rec of window.RE_TEAM_DRAFTS||[]){if(!isValidReTeamRecord(rec)){console.warn('已排除異常隊伍資料：',rec?.name);continue}const key=teamKey(rec.name);if(!groups.has(key))groups.set(key,[]);groups.get(key).push(rec)}
+ const teams=[];for(const list of groups.values()){list.slice(0,2).forEach((rec,index)=>teams.push({...rec,name:index?`${rec.name}支隊`:rec.name,sourceName:rec.name}))}
  return shuffle(teams).slice(0,5);
+}
+function isValidReTeamRecord(record){
+ if(!record||!Array.isArray(record.rounds)||record.rounds.length!==5)return false;
+ const used=new Set();
+ for(const round of record.rounds){
+   if(!Array.isArray(round)||round.length!==3||new Set(round).size!==3)return false;
+   for(const name of round){if(!byName(name)||used.has(name))return false;used.add(name)}
+ }
+ return true;
 }
 function recordCompleteness(record){return Array.from({length:5},(_,index)=>Math.min(3,Array.isArray(record?.rounds?.[index])?record.rounds[index].filter(name=>byName(name)).length:0)).reduce((a,b)=>a+b,0)}
 function completeReTeamRecord(record,displayName=record?.name||'參賽隊伍'){const rounds=[],used=new Set();for(let index=0;index<5;index++){const valid=[...new Set((Array.isArray(record?.rounds?.[index])?record.rounds[index]:[]).filter(name=>byName(name)))].slice(0,3);const available=shuffle(characters.map(c=>c.name).filter(name=>!used.has(name)&&!valid.includes(name)));while(valid.length<3&&available.length)valid.push(available.pop());valid.forEach(name=>used.add(name));rounds.push(valid)}return{...record,name:displayName,sourceName:record?.name||displayName,rounds}}
@@ -299,7 +308,9 @@ async function saveReResultImage(){
    ctx.fillStyle=final.rank===2?'#d9e2ef':final.rank===3?'#d69061':final.rank===1?'#ffe18a':'#d4b185';ctx.font=`700 25px ${font}`;reCanvasWrap(ctx,`「${final.ending.text}」`,W/2,355,1120,38,2);
    let y=450;ctx.font=`800 21px ${font}`;for(const h of state.history){ctx.fillStyle='rgba(22,35,62,.95)';ctx.fillRect(65,y-42,W-130,120);ctx.strokeStyle='#40577f';ctx.lineWidth=2;ctx.strokeRect(65,y-42,W-130,120);ctx.fillStyle='#f4d06f';ctx.textAlign='left';ctx.fillText(`第 ${h.match} 場`,88,y+7);const redMine=h.playerTeam==='red',blueMine=h.playerTeam==='blue',redName=redMine?state.teamName:h.opponent,blueName=blueMine?state.teamName:h.opponent;ctx.textAlign='center';ctx.fillStyle='#ff9aaa';ctx.fillText(`紅方・${redName}`,385,y-10);ctx.fillStyle='#91c4ff';ctx.fillText(`藍方・${blueName}`,1005,y-10);for(let i=0;i<3;i++){reCanvasCircle(ctx,images.get(h.red[i]),300+i*76,y+33,29,redMine?'#f3ce63':'#a65465');reCanvasCircle(ctx,images.get(h.blue[i]),920+i*76,y+33,29,blueMine?'#f3ce63':'#4f83bd')}ctx.fillStyle='#ff91a3';ctx.font=`900 29px ${font}`;ctx.fillText(String(h.rs),640,y+18);ctx.fillStyle='#7db7ff';ctx.fillText(String(h.bs),760,y+18);ctx.fillStyle=h.reWinner==='player'?'#ffe18a':'#ff91a3';ctx.font=`1000 32px ${font}`;ctx.fillText(h.reWinner==='player'?'勝':'負',700,y+62);ctx.font=`800 21px ${font}`;y+=136}
    ctx.fillStyle='rgba(24,37,66,.98)';ctx.fillRect(115,1145,W-230,112);ctx.strokeStyle=state.reFavoriteUsed?'#aef3ff':'#8c6f9f';ctx.lineWidth=4;ctx.strokeRect(115,1145,W-230,112);reCanvasCircle(ctx,favImage,185,1201,40,state.reFavoriteUsed?'#baf2ff':'#c6a1dc');ctx.textAlign='left';ctx.fillStyle='#ffe39a';ctx.font=`900 23px ${font}`;ctx.fillText(state.favorite,250,1185);ctx.fillStyle='#f1f5ff';ctx.font=`600 20px ${font}`;reCanvasWrap(ctx,`「${state.reFavoriteEndingText}」`,250,1218,940,28,2);ctx.textAlign='center';ctx.fillStyle='#8291b2';ctx.font=`500 16px ${font}`;ctx.fillText('Re.星杯戰爭・五連戰紀錄',W/2,1290);
-   const data=canvas.toDataURL('image/png'),overlay=document.getElementById('iosSaveOverlay'),preview=document.getElementById('iosSaveImage');if(!overlay||!preview)throw new Error('找不到圖片預覽視窗');preview.src=data;preview.alt=`${state.teamName} 的 Re.星杯戰爭結果圖片`;overlay.classList.add('show');
+   const blob=await new Promise((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('瀏覽器無法建立 PNG 圖片')),'image/png'));
+   const overlay=document.getElementById('iosSaveOverlay'),preview=document.getElementById('iosSaveImage'),openLink=document.getElementById('iosSaveOpen'),downloadLink=document.getElementById('iosSaveDownload'),closeButton=document.getElementById('iosSaveClose');if(!overlay||!preview||!openLink||!downloadLink||!closeButton)throw new Error('找不到圖片預覽視窗');
+   if(rePreviewObjectUrl)URL.revokeObjectURL(rePreviewObjectUrl);rePreviewObjectUrl=URL.createObjectURL(blob);preview.src=rePreviewObjectUrl;preview.alt=`${state.teamName} 的 Re.星杯戰爭結果圖片`;openLink.href=rePreviewObjectUrl;downloadLink.href=rePreviewObjectUrl;downloadLink.download=`Re星杯戰爭_${state.teamName}_第${state.reFinal.rank}名.png`;closeButton.onclick=()=>{overlay.classList.remove('show');preview.removeAttribute('src');setTimeout(()=>{if(rePreviewObjectUrl){URL.revokeObjectURL(rePreviewObjectUrl);rePreviewObjectUrl=''}},300)};overlay.classList.add('show');
  }catch(error){alert('圖片產生失敗：'+error.message)}finally{if(button){button.disabled=false;button.textContent='儲存圖片'}}
 }
 function quit(){clearInterval(timerId);clearInterval(onlinePollId);clearTimeout(storyTimer);state=null;q('versusPanel').classList.add('hidden');q('profilePanel').classList.remove('hidden');window.scrollTo({top:0,behavior:'smooth'})}
