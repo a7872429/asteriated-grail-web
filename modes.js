@@ -261,9 +261,9 @@ function reFavoriteEndingHTML(victory){
  const fav=byName(state.favorite);if(state.reFavoriteUsed){state.reFavoriteEndingText='你與本命一起走完了這段被改寫的歷史。';return`<div class="re-congrats diamond"><img src="${fav.image}" alt="${esc(fav.name)}"><div><b>${victory?`恭喜 ${esc(state.teamName)} 贏得 Re.星杯戰爭！`:`恭喜 ${esc(state.teamName)} 獲得第 ${state.reFinal?.rank||''} 名！`}</b><p>你與本命「${esc(state.favorite)}」一起走完了這段被改寫的歷史。</p></div></div>`}
  const lines=['我是什麼很爛的角色嗎？','我本將心照明月，奈何明月照溝渠。','選角沒有對錯，只有選我與不選我。','原來我的存在，只是為了證明其他人有多熱門。','沒關係，也許我不是當下最好的選擇。所以你有贏吧？是吧？','再會啦，心愛的無緣的人。那只是無聊的故事、憨人的夢。'];state.reFavoriteEndingText=state.reFavoriteSeen>=3?lines[Math.floor(Math.random()*lines.length)]:'原來回到過去，你還是沒有選我。';return`<div class="re-neglect"><img src="${fav.image}" alt="${esc(fav.name)}"><div><b>${esc(fav.name)}</b><p>「${esc(state.reFavoriteEndingText)}」</p></div></div>`;
 }
-function chibiPath(name){return`assets/chibi/${encodeURIComponent(name)}.webp`}
+function chibiPath(name){const alias={'吟游詩人':'吟遊詩人'};return`assets/chibi/${encodeURIComponent(alias[name]||name)}.webp`}
 function reChampionChibi(){if(state.reFavoriteUsed)return state.favorite;const own=state.history.at(-1)?.[state.history.at(-1)?.playerTeam]||[];return byId(own[Math.floor(Math.random()*own.length)])?.name||state.favorite}
-function reUsedBard(){return state.history.some(h=>(h[h.playerTeam]||[]).some(id=>byId(id)?.name==='吟遊詩人'))}
+function reUsedBard(){return state.history.some(h=>(h[h.playerTeam]||[]).some(id=>['吟游詩人','吟遊詩人'].includes(byId(id)?.name)))}
 function renderReFinal(){
  clearInterval(timerId);const wins=state.history.filter(x=>x.reWinner==='player').length,losses=state.history.length-wins,pattern=state.history.map(x=>x.reWinner==='player'?'O':'X').join(''),ranking=reRanking(pattern),victory=wins===5,ending=reRankEnding(victory?1:ranking.rank);
  const spark=Array.from({length:22},(_,i)=>`<i style="--i:${i};--x:${(i*47)%100}%;--d:${(i%7)*.16}s"></i>`).join('');
