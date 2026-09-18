@@ -28,13 +28,20 @@ const esc=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 const byId=id=>characters.find(c=>c.id===Number(id));
 const API_BASE=String(window.ASTERIATED_API_BASE||'').replace(/\/$/,'');
-async function api(path,payload={},token=''){
+async function api(path,payload={},token='',timeoutMs=12000){
  if(!API_BASE||API_BASE.includes('REPLACE-WITH'))throw new Error('後端尚未部署，請先設定 config.js 的 Worker 網址');
  const headers={'content-type':'application/json'};if(token)headers['x-player-token']=token;
- const response=await fetch(API_BASE+path,{method:'POST',headers,body:JSON.stringify(payload)});
- const data=await response.json().catch(()=>({ok:false,error:'伺服器回應格式錯誤'}));
- if(!response.ok||data.ok===false)throw new Error(data.error||`伺服器錯誤 (${response.status})`);
- return data;
+ const controller=typeof AbortController==='function'?new AbortController():null;
+ const timeout=controller?setTimeout(()=>controller.abort(),timeoutMs):null;
+ try{
+  const response=await fetch(API_BASE+path,{method:'POST',headers,body:JSON.stringify(payload),...(controller?{signal:controller.signal}:{})});
+  const data=await response.json().catch(()=>({ok:false,error:'伺服器回應格式錯誤'}));
+  if(!response.ok||data.ok===false)throw new Error(data.error||`伺服器錯誤 (${response.status})`);
+  return data;
+ }catch(error){
+  if(error?.name==='AbortError')throw new Error('伺服器連線逾時');
+  throw error;
+ }finally{if(timeout)clearTimeout(timeout)}
 }
 function renderFavoriteGrid(){
  const box=q('favoriteGrid');if(!box)return;box.innerHTML='';
@@ -247,10 +254,32 @@ function recordEvent(action,team,characterId=null,seatIndex=null,timedOut=false)
 function isCpuTeam(team){return (state.playMode==='ai'||state.playMode==='online')&&team!==state.playerTeam}
 function byName(name){return characters.find(c=>c.name===name)}
 function candidateIds(team){return state.pool.filter(id=>!state.banned.has(id)&&!state.seats.red.includes(id)&&!state.seats.blue.includes(id)&&!(['fearless','re'].includes(state.mode)&&state.used[team].has(id)))}
-async function rankedCandidates(team,count=3){const available=candidateIds(team);if(!available.length)return[];const out=await api('/api/recommend',{team,currentIds:state.seats[team].filter(Boolean),availableIds:available,count});return out.ids||[]}
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function localCpuCandidates(team,count=3){return shuffle(candidateIds(team)).slice(0,Math.max(0,count))}
+async function rankedCandidates(team,count=3){
+ const available=candidateIds(team);if(!available.length)return[];let lastError=null;
+ for(let attempt=0;attempt<2;attempt++){
+  try{
+   const out=await api('/api/recommend',{team,currentIds:state.seats[team].filter(Boolean),availableIds:available,count},'',8000);
+   const legal=[...new Set((out.ids||[]).map(Number))].filter(id=>available.includes(id)).slice(0,count);
+   if(legal.length)return legal;
+   throw new Error('伺服器沒有回傳可用角色');
+  }catch(error){lastError=error;if(attempt===0)await wait(350)}
+ }
+ throw lastError||new Error('無法取得電腦選角');
+}
+async function cpuCandidates(team,count=3){try{return await rankedCandidates(team,count)}catch(error){console.warn('CPU recommendation fallback:',error.message);return localCpuCandidates(team,count)}}
 async function refreshLearningMarks(){if(!state?.learning||!state.phase||['rd-remove','rd-handover'].includes(state.phase.kind)){state.marks={diamond:new Set(),danger:new Set()};return}const focus=state.playerTeam||(state.phase.team||state.phase.controller),enemy=other(focus),mine=state.seats[focus].filter(Boolean).length,enemyCount=state.seats[enemy].filter(Boolean).length,key=JSON.stringify([state.match,state.phase,focus,[...state.banned],state.seats]);if(key===learningRequestKey)return;learningRequestKey=key;try{const diamond=mine<3?await rankedCandidates(focus,mine===0?3:mine===1?2:1):[],danger=enemyCount>0&&enemyCount<3?await rankedCandidates(enemy,1):[];if(key!==learningRequestKey)return;state.marks={diamond:new Set(diamond),danger:new Set(danger)};render()}catch(e){console.warn('Learning mode:',e.message)}}
 function bestSeatFor(team){return state.seats[team].findIndex(x=>x==null)}
-async function cpuPrivateRemoval(){const team=state.phase.controller,hand=[...state.rdHands[team]],out=await api('/api/decision',{action:'remove',team,availableIds:hand,currentIds:[]});(out.ids||[]).forEach(id=>{state.rdRemoved[team].add(id);recordEvent('remove',team,id)});state.log=[];if(team==='red'){state.phase={kind:'rd-handover',team:'blue',controller:'blue'};render()}else{const left=characters.map(c=>c.id).filter(id=>!state.rdRemoved.red.has(id)&&!state.rdRemoved.blue.has(id));state.pool=shuffle(left).slice(0,20);beginBan();render();startTimer()}}
+async function cpuPrivateRemoval(){
+ const team=state.phase.controller,hand=[...state.rdHands[team]];let ids=[];
+ try{const out=await api('/api/decision',{action:'remove',team,availableIds:hand,currentIds:[]},'',8000);ids=[...new Set((out.ids||[]).map(Number))].filter(id=>hand.includes(id)).slice(0,3)}
+ catch(error){console.warn('CPU private removal fallback:',error.message)}
+ if(ids.length<3)ids.push(...shuffle(hand.filter(id=>!ids.includes(id))).slice(0,3-ids.length));
+ ids.forEach(id=>{state.rdRemoved[team].add(id);recordEvent('remove',team,id)});state.log=[];
+ if(team==='red'){state.phase={kind:'rd-handover',team:'blue',controller:'blue'};render()}
+ else{const left=characters.map(c=>c.id).filter(id=>!state.rdRemoved.red.has(id)&&!state.rdRemoved.blue.has(id));state.pool=shuffle(left).slice(0,20);beginBan();render();startTimer()}
+}
 function reCpuCandidate(team){
  const available=candidateIds(team),pickNo=state.seats[team].filter(Boolean).length,script=state.reOpponent?.rounds?.[state.match-1]||[],wanted=byName(script[pickNo]);
  if(wanted&&available.includes(wanted.id))return wanted.id;
@@ -264,12 +293,12 @@ function maybeCpuAct(){
  if(!isCpuTeam(snapshot.controller))return;
  setTimeout(async()=>{if(state.phase!==snapshot)return;try{
    if(snapshot.kind==='rd-remove'){await cpuPrivateRemoval();return}
-   if(snapshot.kind==='tavern-ban'){const ranked=await rankedCandidates(other(snapshot.controller),1),id=ranked[0]??state.pool.find(availableFor);if(state.phase===snapshot&&id!=null)choose(id);return}
-   if(snapshot.kind==='tavern-pick'){const ranked=await rankedCandidates(snapshot.team,1),id=ranked[0]??state.pool.find(availableFor);if(state.phase===snapshot&&id!=null)choose(id);return}
-   if(['ban','bp-ban','insert'].includes(snapshot.kind)){const ranked=await rankedCandidates(other(snapshot.controller),1),target=ranked[0]??candidateIds(snapshot.controller)[0];if(state.phase!==snapshot)return;if(target!=null)choose(target);else skipBan();return}
-   if(snapshot.kind==='bp-pick'){const ranked=await rankedCandidates(snapshot.team,1),id=ranked[0];if(state.phase===snapshot&&id!=null)choose(id);return}
-   if(snapshot.kind==='pick'){const id=state.mode==='re'?reCpuCandidate(snapshot.team):(await rankedCandidates(snapshot.team,1))[0];if(state.phase===snapshot&&id!=null){state.pendingPick=id;placePick(bestSeatFor(snapshot.team))}}
-  }catch(e){console.warn('CPU:',e.message)}
+   if(snapshot.kind==='tavern-ban'){const ranked=await cpuCandidates(other(snapshot.controller),1),id=ranked[0]??state.pool.find(availableFor);if(state.phase===snapshot&&id!=null)choose(id);return}
+   if(snapshot.kind==='tavern-pick'){const ranked=await cpuCandidates(snapshot.team,1),id=ranked[0]??state.pool.find(availableFor);if(state.phase===snapshot&&id!=null)choose(id);return}
+   if(['ban','bp-ban','insert'].includes(snapshot.kind)){const ranked=await cpuCandidates(other(snapshot.controller),1),target=ranked[0]??localCpuCandidates(snapshot.controller,1)[0];if(state.phase!==snapshot)return;if(target!=null)choose(target);else skipBan();return}
+   if(snapshot.kind==='bp-pick'){const ranked=await cpuCandidates(snapshot.team,1),id=ranked[0]??localCpuCandidates(snapshot.team,1)[0];if(state.phase===snapshot&&id!=null)choose(id);return}
+   if(snapshot.kind==='pick'){const id=state.mode==='re'?reCpuCandidate(snapshot.team):(await cpuCandidates(snapshot.team,1))[0];if(state.phase===snapshot&&id!=null){state.pendingPick=id;placePick(bestSeatFor(snapshot.team))}}
+  }catch(e){console.warn('CPU:',e.message);if(state.phase===snapshot)setTimeout(maybeCpuAct,500)}
  },snapshot.kind==='pick'?1500:650)
 }
 function canUnlockSecretSuggestions(){return state?.mode==='re'&&state.phase?.kind==='pick'&&state.phase.team===state.playerTeam&&state.pendingPick==null}
@@ -296,7 +325,7 @@ function avatarRow(ids,large=false,mine=false,label=''){return`<div class="re-li
 function trashTalk(rec){const red=rec.red.map(byId),blue=rec.blue.map(byId),lines=[];try{if(typeof chainRoleTrashTalks==='function')chainRoleTrashTalks({player:red,cpu:blue,specialAudience:[]}).slice(0,2).forEach(x=>lines.push(x))}catch(e){}const winner=rec.rs===rec.bs?'雙方打得難分難解，觀眾決定把鍋留給下一場。':rec.rs>rec.bs?'藍方選完才發現，真正被 Ban 掉的是自己的勝算。':'紅方握有 First Player，卻把勝利先手讓給了藍方。';lines.unshift(winner);return lines.slice(0,3)}
 function wireNextButton(finalAction){
  const button=q('vsNext');if(!button)return;button.type='button';
- button.onclick=event=>{
+ const proceed=event=>{
   event.preventDefault();event.stopPropagation();if(button.dataset.busy==='1')return;
   button.dataset.busy='1';button.disabled=true;const original=button.textContent;button.textContent='載入中…';
   try{
@@ -307,9 +336,10 @@ function wireNextButton(finalAction){
   }catch(error){
    console.error('切換下一場失敗：',error);
    if(document.body.contains(button)){button.dataset.busy='0';button.disabled=false;button.textContent='重試下一場'}
-   const retry=()=>button.click();button.onclick=retry;
+   button.onclick=proceed;
   }
  };
+ button.onclick=proceed;
 }
 function keywordHue(name){let hash=0;for(const ch of String(name))hash=(hash*31+ch.codePointAt(0))>>>0;return hash%360}
 function keywordBadgeStyle(name){const hue=keywordHue(name);return`--kw-bg:hsl(${hue} 48% 28%);--kw-border:hsl(${hue} 78% 67%);--kw-text:hsl(${hue} 95% 90%)`}
