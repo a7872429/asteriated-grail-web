@@ -331,7 +331,7 @@ function wireNextButton(finalAction){
   clearInterval(timerId);state.matchActive=false;state.phase=null;state.pendingPick=null;
   const expected=(state.history?.length||0)+1,panel=q('versusPanel');
   if(state.history.length>=state.total){finalAction();return}
-  if(panel)panel.innerHTML=`<div class="vs-draft-shell vs-privacy vs-next-loading"><div class="vs-battle-title">Re.星杯戰爭</div><div class="vs-title">正在準備第 ${expected} 場…</div><p>正在載入對戰隊伍與角色，請稍候。</p><div class="vs-loading-dots" aria-hidden="true">● ● ●</div></div>`;
+  if(panel)panel.innerHTML=`<div class="vs-draft-shell vs-privacy vs-next-loading"><div class="vs-battle-title">${esc(MODES[state.mode]?.name||'連戰')}</div><div class="vs-title">正在準備第 ${expected} 場…</div><p>正在載入對戰隊伍與角色，請稍候。</p><div class="vs-loading-dots" aria-hidden="true">● ● ●</div></div>`;
   const launch=()=>{try{startMatchSafe()}catch(error){console.error('切換下一場失敗：',error);if(panel)panel.innerHTML=`<div class="vs-result"><div class="vs-title">下一場載入失敗</div><p>${esc(error.message)}</p><button id="vsRecover" class="vs-btn">重新載入下一場</button><button id="vsHome" class="vs-btn">回到首頁</button></div>`;if(q('vsRecover'))q('vsRecover').onclick=()=>startMatchSafe();if(q('vsHome'))q('vsHome').onclick=quit}};
   if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>setTimeout(launch,0));else setTimeout(launch,0);
  };
